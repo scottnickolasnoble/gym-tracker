@@ -1,0 +1,21 @@
+# Render Blueprint for the web service. The database lives on Neon.
+# In Render: New + > Blueprint > pick this repo. It will ask you to paste DATABASE_URL.
+services:
+  - type: web
+    name: gym-log
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false          # paste your Neon connection string when Render asks
+      - key: DATABASE_SSL
+        value: "true"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ALLOW_SIGNUPS
+        value: "true"
