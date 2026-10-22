@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { query } = require('../db/pool');
 const { asyncHandler, HttpError } = require('../middleware/errors');
 const v = require('../middleware/validate');
+const { KEYS: EQUIPMENT_KEYS } = require('../lib/equipment');
 
 const router = express.Router();
 
@@ -24,7 +25,8 @@ async function load(userId) {
     bodyweightGoal: s.bodyweight_goal,
     restBig: s.rest_big,
     restOther: s.rest_other,
-    suggestIncrease: s.suggest_increase
+    suggestIncrease: s.suggest_increase,
+    equipment: s.equipment
   };
 }
 
@@ -44,14 +46,16 @@ router.put('/', asyncHandler(async (req, res) => {
   const restBig = v.int(b.restBig, 'Rest for big lifts', { min: 0, max: 900 });
   const restOther = v.int(b.restOther, 'Rest for other lifts', { min: 0, max: 900 });
   const suggestIncrease = v.bool(b.suggestIncrease, 'Suggest increases');
+  if (!Array.isArray(b.equipment)) throw v.bad('Equipment must be a list.');
+  const equipment = [...new Set(b.equipment.map((e) => v.oneOf(e, 'Equipment', EQUIPMENT_KEYS)))];
 
   await query('UPDATE users SET display_name = $1 WHERE id = $2', [name, req.userId]);
   await query(
     `UPDATE user_settings
         SET units = $1, bar_weight = $2, plates = $3, weekly_goal = $4, bodyweight_goal = $5,
-            rest_big = $6, rest_other = $7, suggest_increase = $8
-      WHERE user_id = $9`,
-    [units, barWeight, plates, weeklyGoal, bodyweightGoal, restBig, restOther, suggestIncrease, req.userId]
+            rest_big = $6, rest_other = $7, suggest_increase = $8, equipment = $9
+      WHERE user_id = $10`,
+    [units, barWeight, plates, weeklyGoal, bodyweightGoal, restBig, restOther, suggestIncrease, equipment, req.userId]
   );
   res.json(await load(req.userId));
 }));

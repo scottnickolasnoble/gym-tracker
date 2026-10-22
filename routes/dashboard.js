@@ -91,12 +91,12 @@ router.get('/', asyncHandler(async (req, res) => {
   }
   if (upNext && upNext.kind === 'workout') {
     const { rows } = await query(
-      `SELECT e.name, re.sets, re.reps, re.weight, e.is_bodyweight
+      `SELECT e.name, re.sets, re.reps, re.seconds, re.weight, e.is_bodyweight, e.is_timed
          FROM routine_exercises re JOIN exercises e ON e.id = re.exercise_id
         WHERE re.routine_id = $1 ORDER BY re.position`,
       [upNext.routineId]
     );
-    upNext.items = rows.map((r) => ({ name: r.name, sets: r.sets, reps: r.reps, weight: r.is_bodyweight ? null : r.weight }));
+    upNext.items = rows.map((r) => ({ name: r.name, sets: r.sets, reps: r.reps, seconds: r.is_timed ? r.seconds : null, weight: r.is_bodyweight ? null : r.weight }));
   }
 
   // Recent finished workouts.

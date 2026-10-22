@@ -1,118 +1,165 @@
-// Built-in exercise library + the starter workouts/schedule every new account gets.
+// Built-in exercise library + ready-made home workout templates.
 
-// [name, muscle_group, equipment, is_big_lift, is_bodyweight, lower_body]
+// [name, muscle group, equipment shown, equipment needed, flags]
+// flags: big = uses the longer rest, nw = no weight to log, low = lower body (bigger weight jumps), time = timed hold
 const LIBRARY = [
-  ['Bench press', 'push', 'Barbell', true, false, false],
-  ['Overhead press', 'push', 'Barbell', true, false, false],
-  ['Close-grip bench press', 'push', 'Barbell', false, false, false],
-  ['Incline dumbbell press', 'push', 'Dumbbells', false, false, false],
-  ['Dumbbell shoulder press', 'push', 'Dumbbells', false, false, false],
-  ['Lateral raise', 'push', 'Dumbbells', false, false, false],
-  ['Cable fly', 'push', 'Cable', false, false, false],
-  ['Triceps pushdown', 'push', 'Cable', false, false, false],
-  ['Skull crushers', 'push', 'EZ bar', false, false, false],
-  ['Dips', 'push', 'Body weight', false, true, false],
-  ['Push-ups', 'push', 'Body weight', false, true, false],
+  // ---- Push ----
+  ['Dumbbell bench press', 'push', 'Dumbbells', ['dumbbells', 'bench'], ''],
+  ['Incline dumbbell press', 'push', 'Dumbbells', ['dumbbells', 'bench'], ''],
+  ['Dumbbell fly', 'push', 'Dumbbells', ['dumbbells', 'bench'], ''],
+  ['Dumbbell shoulder press', 'push', 'Dumbbells', ['dumbbells', 'bench'], ''],
+  ['Arnold press', 'push', 'Dumbbells', ['dumbbells'], ''],
+  ['Lateral raise', 'push', 'Dumbbells', ['dumbbells'], ''],
+  ['Front raise', 'push', 'Dumbbells', ['dumbbells'], ''],
+  ['Dumbbell skull crusher', 'push', 'Dumbbells', ['dumbbells', 'bench'], ''],
+  ['Overhead dumbbell extension', 'push', 'Dumbbells', ['dumbbells'], ''],
+  ['Dumbbell kickback', 'push', 'Dumbbells', ['dumbbells', 'bench'], ''],
+  ['Push-ups', 'push', 'Body weight', [], 'nw'],
+  ['Incline push-ups', 'push', 'Body weight', ['bench'], 'nw'],
+  ['Decline push-ups', 'push', 'Body weight', ['bench'], 'nw'],
+  ['Bench dips', 'push', 'Body weight', ['bench'], 'nw'],
+  ['Band chest press', 'push', 'Band', ['bands'], 'nw'],
+  ['Band overhead press', 'push', 'Band', ['bands'], 'nw'],
+  ['Band triceps pushdown', 'push', 'Band', ['bands'], 'nw'],
+  ['Band lateral raise', 'push', 'Band', ['bands'], 'nw'],
+  ['Bench press', 'push', 'Barbell', ['barbell', 'bench'], 'big'],
+  ['Overhead press', 'push', 'Barbell', ['barbell'], 'big'],
+  ['Close-grip bench press', 'push', 'Barbell', ['barbell', 'bench'], ''],
+  ['Skull crushers', 'push', 'EZ bar', ['ezbar', 'bench'], ''],
+  ['Cable fly', 'push', 'Cable', ['cable'], ''],
+  ['Triceps pushdown', 'push', 'Cable', ['cable'], ''],
+  ['Dips', 'push', 'Dip station', ['dipstation'], 'nw'],
 
-  ['Deadlift', 'pull', 'Barbell', true, false, true],
-  ['Barbell row', 'pull', 'Barbell', false, false, false],
-  ['Dumbbell row', 'pull', 'Dumbbells', false, false, false],
-  ['Pull-ups', 'pull', 'Body weight', false, true, false],
-  ['Chin-ups', 'pull', 'Body weight', false, true, false],
-  ['Lat pulldown', 'pull', 'Cable', false, false, false],
-  ['Seated cable row', 'pull', 'Cable', false, false, false],
-  ['Face pulls', 'pull', 'Cable', false, false, false],
-  ['Barbell curl', 'pull', 'Barbell', false, false, false],
-  ['EZ-bar curl', 'pull', 'EZ bar', false, false, false],
-  ['Hammer curl', 'pull', 'Dumbbells', false, false, false],
-  ['Preacher curl', 'pull', 'Machine', false, false, false],
-  ['Shrugs', 'pull', 'Dumbbells', false, false, false],
-  ['Wrist curl', 'pull', 'Dumbbells', false, false, false],
+  // ---- Pull ----
+  ['Dumbbell row', 'pull', 'Dumbbells', ['dumbbells', 'bench'], ''],
+  ['Chest-supported dumbbell row', 'pull', 'Dumbbells', ['dumbbells', 'bench'], ''],
+  ['Dumbbell pullover', 'pull', 'Dumbbells', ['dumbbells', 'bench'], ''],
+  ['Reverse dumbbell fly', 'pull', 'Dumbbells', ['dumbbells'], ''],
+  ['Dumbbell curl', 'pull', 'Dumbbells', ['dumbbells'], ''],
+  ['Hammer curl', 'pull', 'Dumbbells', ['dumbbells'], ''],
+  ['Incline dumbbell curl', 'pull', 'Dumbbells', ['dumbbells', 'bench'], ''],
+  ['Concentration curl', 'pull', 'Dumbbells', ['dumbbells', 'bench'], ''],
+  ['Shrugs', 'pull', 'Dumbbells', ['dumbbells'], ''],
+  ['Wrist curl', 'pull', 'Dumbbells', ['dumbbells'], ''],
+  ['Band row', 'pull', 'Band', ['bands'], 'nw'],
+  ['Band pull-apart', 'pull', 'Band', ['bands'], 'nw'],
+  ['Band face pull', 'pull', 'Band', ['bands'], 'nw'],
+  ['Band lat pulldown', 'pull', 'Band', ['bands'], 'nw'],
+  ['Band curl', 'pull', 'Band', ['bands'], 'nw'],
+  ['Pull-ups', 'pull', 'Pull-up bar', ['pullup'], 'nw'],
+  ['Chin-ups', 'pull', 'Pull-up bar', ['pullup'], 'nw'],
+  ['Dead hang', 'pull', 'Pull-up bar', ['pullup'], 'nw time'],
+  ['Deadlift', 'pull', 'Barbell', ['barbell'], 'big low'],
+  ['Barbell row', 'pull', 'Barbell', ['barbell'], ''],
+  ['Barbell curl', 'pull', 'Barbell', ['barbell'], ''],
+  ['EZ-bar curl', 'pull', 'EZ bar', ['ezbar'], ''],
+  ['Lat pulldown', 'pull', 'Cable', ['cable'], ''],
+  ['Seated cable row', 'pull', 'Cable', ['cable'], ''],
+  ['Face pulls', 'pull', 'Cable', ['cable'], ''],
+  ['Preacher curl', 'pull', 'Machine', ['machine'], ''],
 
-  ['Back squat', 'legs', 'Barbell', true, false, true],
-  ['Front squat', 'legs', 'Barbell', true, false, true],
-  ['Romanian deadlift', 'legs', 'Barbell', false, false, true],
-  ['Hip thrust', 'legs', 'Barbell', false, false, true],
-  ['Leg press', 'legs', 'Machine', false, false, true],
-  ['Walking lunges', 'legs', 'Dumbbells', false, false, true],
-  ['Bulgarian split squat', 'legs', 'Dumbbells', false, false, true],
-  ['Leg extension', 'legs', 'Machine', false, false, true],
-  ['Lying leg curl', 'legs', 'Machine', false, false, true],
-  ['Standing calf raise', 'legs', 'Machine', false, false, true],
+  // ---- Legs ----
+  ['Goblet squat', 'legs', 'Dumbbells', ['dumbbells'], 'low'],
+  ['Dumbbell Romanian deadlift', 'legs', 'Dumbbells', ['dumbbells'], 'low'],
+  ['Single-leg Romanian deadlift', 'legs', 'Dumbbells', ['dumbbells'], 'low'],
+  ['Bulgarian split squat', 'legs', 'Dumbbells', ['dumbbells', 'bench'], 'low'],
+  ['Walking lunges', 'legs', 'Dumbbells', ['dumbbells'], 'low'],
+  ['Reverse lunge', 'legs', 'Dumbbells', ['dumbbells'], 'low'],
+  ['Dumbbell step-up', 'legs', 'Dumbbells', ['dumbbells', 'bench'], 'low'],
+  ['Dumbbell hip thrust', 'legs', 'Dumbbells', ['dumbbells', 'bench'], 'low'],
+  ['Dumbbell sumo squat', 'legs', 'Dumbbells', ['dumbbells'], 'low'],
+  ['Dumbbell calf raise', 'legs', 'Dumbbells', ['dumbbells'], 'low'],
+  ['Bodyweight squat', 'legs', 'Body weight', [], 'nw low'],
+  ['Glute bridge', 'legs', 'Body weight', [], 'nw low'],
+  ['Single-leg glute bridge', 'legs', 'Body weight', [], 'nw low'],
+  ['Wall sit', 'legs', 'Body weight', [], 'nw low time'],
+  ['Band lateral walk', 'legs', 'Band', ['bands'], 'nw low'],
+  ['Band good morning', 'legs', 'Band', ['bands'], 'nw low'],
+  ['Band glute kickback', 'legs', 'Band', ['bands'], 'nw low'],
+  ['Back squat', 'legs', 'Barbell', ['barbell'], 'big low'],
+  ['Front squat', 'legs', 'Barbell', ['barbell'], 'big low'],
+  ['Romanian deadlift', 'legs', 'Barbell', ['barbell'], 'low'],
+  ['Hip thrust', 'legs', 'Barbell', ['barbell', 'bench'], 'low'],
+  ['Leg press', 'legs', 'Machine', ['machine'], 'low'],
+  ['Leg extension', 'legs', 'Machine', ['machine'], 'low'],
+  ['Lying leg curl', 'legs', 'Machine', ['machine'], 'low'],
+  ['Standing calf raise', 'legs', 'Machine', ['machine'], 'low'],
 
-  ['Plank (seconds)', 'core', 'Body weight', false, true, false],
-  ['Hanging leg raise', 'core', 'Body weight', false, true, false],
-  ['Cable crunch', 'core', 'Cable', false, false, false],
-  ['Ab wheel rollout', 'core', 'Body weight', false, true, false],
-  ['Russian twist', 'core', 'Body weight', false, true, false]
+  // ---- Core ----
+  ['Plank', 'core', 'Body weight', [], 'nw time'],
+  ['Side plank', 'core', 'Body weight', [], 'nw time'],
+  ['Hollow hold', 'core', 'Body weight', [], 'nw time'],
+  ['Mountain climbers', 'core', 'Body weight', [], 'nw time'],
+  ['Jumping jacks', 'core', 'Body weight', [], 'nw time'],
+  ['Dead bug', 'core', 'Body weight', [], 'nw'],
+  ['Bicycle crunch', 'core', 'Body weight', [], 'nw'],
+  ['Lying leg raise', 'core', 'Body weight', [], 'nw'],
+  ['Russian twist', 'core', 'Body weight', [], 'nw'],
+  ['Burpees', 'core', 'Body weight', [], 'nw'],
+  ['Dumbbell side bend', 'core', 'Dumbbells', ['dumbbells'], ''],
+  ['Band Pallof press', 'core', 'Band', ['bands'], 'nw'],
+  ['Hanging leg raise', 'core', 'Pull-up bar', ['pullup'], 'nw'],
+  ['Cable crunch', 'core', 'Cable', ['cable'], ''],
+  ['Ab wheel rollout', 'core', 'Ab wheel', ['abwheel'], 'nw']
 ];
 
 async function seedLibrary(client) {
-  for (const [name, group, equipment, big, bw, lower] of LIBRARY) {
+  // Version 1 called it "Plank (seconds)". Rename so workouts that use it keep working.
+  await client.query(
+    `UPDATE exercises SET name = 'Plank'
+      WHERE user_id IS NULL AND name = 'Plank (seconds)'
+        AND NOT EXISTS (SELECT 1 FROM exercises WHERE user_id IS NULL AND name = 'Plank')`
+  );
+  for (const [name, group, equipment, needs, flags] of LIBRARY) {
+    const f = flags.split(' ');
     await client.query(
-      `INSERT INTO exercises (user_id, name, muscle_group, equipment, is_big_lift, is_bodyweight, lower_body)
-       VALUES (NULL, $1, $2, $3, $4, $5, $6)
-       ON CONFLICT (name) WHERE user_id IS NULL DO NOTHING`,
-      [name, group, equipment, big, bw, lower]
+      `INSERT INTO exercises (user_id, name, muscle_group, equipment, needs, is_big_lift, is_bodyweight, lower_body, is_timed)
+       VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (name) WHERE user_id IS NULL DO UPDATE
+         SET muscle_group = EXCLUDED.muscle_group, equipment = EXCLUDED.equipment, needs = EXCLUDED.needs,
+             is_big_lift = EXCLUDED.is_big_lift, is_bodyweight = EXCLUDED.is_bodyweight,
+             lower_body = EXCLUDED.lower_body, is_timed = EXCLUDED.is_timed`,
+      [name, group, equipment, needs, f.includes('big'), f.includes('nw'), f.includes('low'), f.includes('time')]
     );
   }
 }
 
-// [exercise name, sets, reps, rest seconds]
-const STARTERS = [
-  { name: 'Push day', type: 'push', stretch: 'push', items: [
-    ['Bench press', 3, 5, 180], ['Overhead press', 3, 8, 120], ['Incline dumbbell press', 3, 10, 90],
-    ['Triceps pushdown', 3, 12, 60], ['Lateral raise', 3, 15, 60]
+// Home workouts (dumbbells, adjustable bench, bands) you can add with one tap.
+// Items: [exercise name, sets, reps OR seconds for timed exercises, rest seconds]
+const TEMPLATES = {
+  upper: { name: 'Upper body', type: 'upper', stretch: 'push', items: [
+    ['Dumbbell bench press', 3, 10, 90], ['Dumbbell row', 3, 10, 90], ['Dumbbell shoulder press', 3, 10, 90],
+    ['Band pull-apart', 3, 15, 60], ['Dumbbell curl', 3, 12, 60], ['Overhead dumbbell extension', 3, 12, 60]
   ] },
-  { name: 'Pull day', type: 'pull', stretch: 'pull', items: [
-    ['Deadlift', 3, 5, 180], ['Barbell row', 4, 8, 120], ['Pull-ups', 3, 10, 120],
-    ['Face pulls', 3, 15, 60], ['Hammer curl', 3, 10, 60]
+  lower: { name: 'Lower body', type: 'legs', stretch: 'legs', items: [
+    ['Goblet squat', 3, 10, 90], ['Dumbbell Romanian deadlift', 3, 10, 90], ['Bulgarian split squat', 3, 8, 90],
+    ['Dumbbell hip thrust', 3, 12, 60], ['Dumbbell calf raise', 3, 15, 45], ['Plank', 3, 45, 45]
   ] },
-  { name: 'Legs', type: 'legs', stretch: 'legs', items: [
-    ['Back squat', 3, 5, 180], ['Romanian deadlift', 3, 8, 120], ['Leg press', 3, 12, 90],
-    ['Lying leg curl', 3, 12, 60], ['Standing calf raise', 3, 15, 60]
+  full: { name: 'Full body', type: 'full', stretch: 'full', items: [
+    ['Goblet squat', 3, 10, 90], ['Dumbbell bench press', 3, 10, 90], ['Chest-supported dumbbell row', 3, 10, 90],
+    ['Reverse lunge', 3, 10, 60], ['Band face pull', 3, 15, 60], ['Side plank', 2, 30, 30]
   ] }
-];
+};
 
-// Gives a brand-new user three workouts and a Mon/Wed/Fri schedule so the app isn't empty.
-async function seedStarterData(client, userId) {
-  const { rows: lib } = await client.query('SELECT id, name FROM exercises WHERE user_id IS NULL');
-  const idByName = Object.fromEntries(lib.map((r) => [r.name, r.id]));
-  const routineIds = {};
-
-  for (const r of STARTERS) {
-    const { rows } = await client.query(
-      'INSERT INTO routines (user_id, name, type, stretch_key) VALUES ($1, $2, $3, $4) RETURNING id',
-      [userId, r.name, r.type, r.stretch]
-    );
-    routineIds[r.type] = rows[0].id;
-    for (let i = 0; i < r.items.length; i++) {
-      const [exName, sets, reps, rest] = r.items[i];
-      await client.query(
-        `INSERT INTO routine_exercises (routine_id, exercise_id, position, sets, reps, weight, rest_seconds)
-         VALUES ($1, $2, $3, $4, $5, NULL, $6)`,
-        [rows[0].id, idByName[exName], i, sets, reps, rest]
-      );
-    }
-  }
-
-  const week = [
-    ['workout', routineIds.push, null, true, '18:00'],
-    ['rest', null, null, false, null],
-    ['workout', routineIds.pull, null, true, '18:00'],
-    ['rest', null, null, false, null],
-    ['workout', routineIds.legs, null, true, '18:00'],
-    ['stretch', null, 'full', false, '09:00'],
-    ['rest', null, null, false, null]
-  ];
-  for (let day = 0; day < 7; day++) {
-    const [kind, routineId, stretchKey, after, time] = week[day];
+async function addTemplate(client, userId, key) {
+  const t = TEMPLATES[key];
+  const { rows: lib } = await client.query('SELECT id, name, is_timed FROM exercises WHERE user_id IS NULL');
+  const byName = Object.fromEntries(lib.map((r) => [r.name, r]));
+  const { rows } = await client.query(
+    'INSERT INTO routines (user_id, name, type, stretch_key) VALUES ($1, $2, $3, $4) RETURNING id',
+    [userId, t.name, t.type, t.stretch]
+  );
+  let pos = 0;
+  for (const [exName, sets, amount, rest] of t.items) {
+    const ex = byName[exName];
+    if (!ex) continue;
     await client.query(
-      `INSERT INTO schedule_days (user_id, day, kind, routine_id, stretch_key, stretch_after, start_time)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [userId, day, kind, routineId, stretchKey, after, time]
+      `INSERT INTO routine_exercises (routine_id, exercise_id, position, sets, reps, seconds, weight, rest_seconds)
+       VALUES ($1, $2, $3, $4, $5, $6, NULL, $7)`,
+      [rows[0].id, ex.id, pos++, sets, ex.is_timed ? 1 : amount, ex.is_timed ? amount : null, rest]
     );
   }
+  return rows[0].id;
 }
 
-module.exports = { seedLibrary, seedStarterData };
+module.exports = { seedLibrary, addTemplate, TEMPLATES };

@@ -96,18 +96,18 @@
   GL.fail = (err) => GL.toast(err && err.message ? err.message : String(err), true);
 
   // Simple modal. Returns { el, close }. Content is trusted HTML you build with GL.esc().
-  GL.modal = (html) => {
+  GL.modal = (html, { sheet = false, wide = false } = {}) => {
     const back = document.createElement('div');
-    back.className = 'modal-backdrop';
-    back.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${html}</div>`;
+    back.className = 'modal-backdrop' + (sheet ? ' as-sheet' : '');
+    back.innerHTML = `<div class="modal${sheet ? ' sheet' : ''}${wide ? ' wide' : ''}" role="dialog" aria-modal="true">${html}</div>`;
     document.body.appendChild(back);
     const close = () => back.remove();
     back.addEventListener('click', (e) => { if (e.target === back) close(); });
     document.addEventListener('keydown', function onKey(e) {
       if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); }
     });
-    const first = back.querySelector('input, select, textarea, button');
-    if (first) first.focus();
+    const first = back.querySelector('input, select, textarea');
+    if (first && !sheet) first.focus();
     return { el: back.firstElementChild, close };
   };
 
@@ -126,6 +126,140 @@
     pause: (s = 28) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>`
   };
 
+  // ---------- Sets, plans and time ----------
+  // Seconds as "45s" or "1:30".
+  GL.secs = (n) => (n == null ? '—' : n < 60 ? `${n}s` : GL.clock(n));
+  // One logged set: "40×10", "BW×12", "45s" or "20×45s".
+  GL.setText = (s) => (s.seconds != null
+    ? `${s.weight != null ? GL.num(s.weight) + '×' : ''}${GL.secs(s.seconds)}`
+    : `${GL.weight(s.weight)}×${s.reps}`);
+  // A planned exercise: "3 × 10 · 40" or "3 × 45s".
+  GL.planText = (it) => `${it.sets} × ${it.seconds != null && (it.isTimed || it.seconds) ? GL.secs(it.seconds) : it.reps}${it.weight != null ? ' · ' + GL.num(it.weight) : ''}`;
+
+  GL.EQUIPMENT = {
+    dumbbells: 'Dumbbells', bench: 'Adjustable bench', bands: 'Resistance bands', pullup: 'Pull-up bar',
+    barbell: 'Barbell & rack', ezbar: 'EZ bar', cable: 'Cable machine', machine: 'Gym machines',
+    dipstation: 'Dip station', abwheel: 'Ab wheel'
+  };
+  GL.canDo = (exercise, owned) => (exercise.needs || []).every((n) => owned.includes(n));
+
+  // ---------- Drag to reorder ----------
+  // Rows inside `list` need data-sort; each row's grab handle needs data-handle.
+  // onMove(from, to) is called once you let go.
+  GL.sortable = (list, onMove) => {
+    list.addEventListener('pointerdown', (e) => {
+      const handle = e.target.closest('[data-handle]');
+      if (!handle || !list.contains(handle)) return;
+      const item = handle.closest('[data-sort]');
+      const rows = () => Array.from(list.querySelectorAll(':scope > [data-sort]'));
+      const from = rows().indexOf(item);
+      e.preventDefault();
+      try { handle.setPointerCapture(e.pointerId); } catch (err) { /* window listeners still catch it */ }
+      item.classList.add('dragging');
+      let scrollTimer = null;
+      let lastY = e.clientY;
+      // Swap with neighbours until the dragged row sits where the finger is.
+      // Only the neighbours move in the DOM, never the dragged row, so the pointer stays attached to it.
+      const step = () => {
+        for (let guard = 0; guard < 50; guard++) {
+          const r = rows();
+          const i = r.indexOf(item);
+          const prev = r[i - 1];
+          const next = r[i + 1];
+          if (prev) {
+            const b = prev.getBoundingClientRect();
+            if (lastY < b.top + b.height / 2) { list.insertBefore(prev, item.nextSibling); continue; }
+          }
+          if (next) {
+            const b = next.getBoundingClientRect();
+            if (lastY > b.top + b.height / 2) { list.insertBefore(next, item); continue; }
+          }
+          break;
+        }
+      };
+      const move = (ev) => {
+        lastY = ev.clientY;
+        step();
+        clearInterval(scrollTimer);
+        const edge = 70;
+        const dir = lastY < edge ? -1 : lastY > window.innerHeight - edge ? 1 : 0;
+        if (dir) scrollTimer = setInterval(() => { window.scrollBy(0, dir * 12); step(); }, 16);
+      };
+      const done = () => {
+        clearInterval(scrollTimer);
+        item.classList.remove('dragging');
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', done);
+        window.removeEventListener('pointercancel', done);
+        const to = rows().indexOf(item);
+        if (to !== from) onMove(from, to);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', done);
+      window.addEventListener('pointercancel', done);
+    });
+  };
+  GL.moveItem = (arr, from, to) => { const [x] = arr.splice(from, 1); arr.splice(to, 0, x); return arr; };
+  GL.gripIcon = () => '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.7"></circle><circle cx="15" cy="6" r="1.7"></circle><circle cx="9" cy="12" r="1.7"></circle><circle cx="15" cy="12" r="1.7"></circle><circle cx="9" cy="18" r="1.7"></circle><circle cx="15" cy="18" r="1.7"></circle></svg>';
+
+  // ---------- Start sheet: one place to start anything ----------
+  const STRETCH_TITLES = { full: 'Full body', push: 'Chest, shoulders & triceps', pull: 'Back & biceps', legs: 'Legs & hips' };
+  GL.STRETCH_TITLES = STRETCH_TITLES;
+
+  GL.startSheet = async () => {
+    const m = GL.modal('<p class="muted">Loading…</p>', { sheet: true });
+    try {
+      const [routines, week, active] = await Promise.all([GL.api('/routines'), GL.api('/schedule'), GL.api('/workouts/active')]);
+      const todayIdx = GL.weekdayIndex(GL.todayLocal());
+      const plan = week[todayIdx];
+      const planned = plan.kind === 'workout' ? routines.find((r) => r.id === plan.routineId) : null;
+
+      let today = '';
+      if (planned) {
+        today = `<a class="start-today" href="/plan.html?routine=${planned.id}">
+          <span><span class="label" style="color:inherit; opacity:.75">Planned today</span>
+          <span class="start-today-name">${GL.esc(planned.name)}</span>
+          <span class="small" style="opacity:.8">${planned.exerciseCount} exercises · ~${planned.minutes} min</span></span>
+          <span class="start-go">Start ${GL.icon.right(18)}</span></a>`;
+      } else if (plan.kind === 'stretch') {
+        const k = plan.stretchKey || 'full';
+        today = `<a class="start-today" href="/stretch.html?routine=${k}&amp;start=1">
+          <span><span class="label" style="color:inherit; opacity:.75">Planned today</span>
+          <span class="start-today-name">Stretch · ${STRETCH_TITLES[k]}</span></span>
+          <span class="start-go">Start ${GL.icon.right(18)}</span></a>`;
+      } else {
+        today = `<p class="small muted">Today is a rest day on your schedule. Pick anything below to train anyway.</p>`;
+      }
+
+      m.el.innerHTML = `
+        <div class="row-between" style="align-items:center"><h2>Start</h2>
+          <button class="icon-btn" data-close aria-label="Close">${GL.icon.x(18)}</button></div>
+        ${active ? `<a class="card pad-sm row-center" href="/focus.html?id=${active.id}" style="text-decoration:none; border:2px solid var(--ink)">
+          <span style="flex:1"><b>${GL.esc(active.name)}</b> is still open</span><span class="btn btn-sm btn-primary">Resume</span></a>` : ''}
+        ${today}
+        <div class="stack">
+          <p class="label">Your workouts</p>
+          <div class="list" style="box-shadow:none; border:1px solid var(--line)">
+            ${routines.map((r) => `
+              <a class="list-row" href="/plan.html?routine=${r.id}" style="padding:10px 14px">
+                ${GL.typeDot(r.type)}
+                <span class="grow"><span class="title" style="font-size:15px">${GL.esc(r.name)}</span>
+                <span class="sub">${r.exerciseCount} exercises · ~${r.minutes} min</span></span>
+                <span class="btn btn-sm">Start</span>
+              </a>`).join('') || '<p class="empty">No workouts yet.</p>'}
+          </div>
+          <a class="btn btn-dashed" href="/routine.html?new=1">+ Build a workout</a>
+        </div>
+        <div class="stack">
+          <p class="label">Just stretch</p>
+          <div class="pills">
+            ${Object.keys(STRETCH_TITLES).map((k) => `<a class="pill" style="text-decoration:none" href="/stretch.html?routine=${k}&amp;start=1">${GL.typeDot(k === 'full' ? 'stretch' : k)}${STRETCH_TITLES[k]}</a>`).join('')}
+          </div>
+        </div>`;
+      m.el.querySelector('[data-close]').addEventListener('click', m.close);
+    } catch (err) { m.close(); GL.fail(err); }
+  };
+
   // ---------- Header + phone tab bar ----------
   const NAV = [
     ['/', 'Dashboard', 'home'],
@@ -139,8 +273,8 @@
   const TABS = [
     ['/', 'Home', 'home'],
     ['/schedule.html', 'Schedule', 'schedule'],
+    ['#start', 'Start', 'start'],
     ['/routines.html', 'Workouts', 'routines'],
-    ['/stretch.html', 'Stretch', 'stretch'],
     ['/history.html', 'History', 'history']
   ];
 
@@ -154,6 +288,7 @@
           ${NAV.map(([href, label, key]) => `<a href="${href}" class="${key === active ? 'active' : ''}" ${key === active ? 'aria-current="page"' : ''}>${label}</a>`).join('')}
         </nav>
         <div class="header-actions">
+          <button class="btn btn-sm btn-primary header-start" data-start>${GL.icon.play(14)} Start workout</button>
           <a class="icon-btn" href="/settings.html" aria-label="Settings">${GL.icon.gear(20)}</a>
           <button class="btn btn-sm btn-ghost" id="logout-btn">Log out</button>
         </div>
@@ -163,10 +298,14 @@
     const tabs = document.createElement('nav');
     tabs.className = 'tabbar';
     tabs.setAttribute('aria-label', 'Main');
-    tabs.innerHTML = TABS.map(([href, label, key]) =>
-      `<a href="${href}" class="${key === active ? 'active' : ''}" ${key === active ? 'aria-current="page"' : ''}>${label}</a>`).join('');
+    tabs.innerHTML = TABS.map(([href, label, key]) => key === 'start'
+      ? `<button class="tab-start" data-start aria-label="Start a workout"><span class="tab-start-btn">${GL.icon.play(22)}</span><span>Start</span></button>`
+      : `<a href="${href}" class="${key === active ? 'active' : ''}" ${key === active ? 'aria-current="page"' : ''}>${label}</a>`).join('');
     document.body.appendChild(tabs);
 
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('[data-start]')) { e.preventDefault(); GL.startSheet(); }
+    });
     GL.$('#logout-btn').addEventListener('click', async () => {
       try { await GL.api('/auth/logout', { method: 'POST', body: {} }); } catch (e) { /* ignore */ }
       location.href = '/login.html';

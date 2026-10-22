@@ -58,7 +58,7 @@ router.get('/active', asyncHandler(async (req, res) => {
 router.get('/:id', asyncHandler(async (req, res) => {
   const w = await ownWorkout(req.userId, v.id(req.params.id));
   const { rows: sets } = await query(
-    `SELECT ws.id, ws.exercise_id, ws.set_number, ws.weight, ws.reps, e.name
+    `SELECT ws.id, ws.exercise_id, ws.set_number, ws.weight, ws.reps, ws.seconds, e.name
        FROM workout_sets ws JOIN exercises e ON e.id = ws.exercise_id
       WHERE ws.workout_id = $1
       ORDER BY ws.completed_at, ws.id`,
@@ -72,7 +72,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
   res.json({
     id: w.id, routineId: w.routine_id, name: w.name, type: w.type, stretchKey: w.stretch_key,
     plan: w.plan, startedAt: w.started_at, finishedAt: w.finished_at, notes: w.notes,
-    sets: sets.map((s) => ({ id: s.id, exerciseId: s.exercise_id, setNumber: s.set_number, weight: s.weight, reps: s.reps, name: s.name })),
+    sets: sets.map((s) => ({ id: s.id, exerciseId: s.exercise_id, setNumber: s.set_number, weight: s.weight, reps: s.reps, seconds: s.seconds, name: s.name })),
     stretches: stretches.map((s) => ({ id: s.id, key: s.routine_key, seconds: s.seconds })),
     ...sum, prs
   });
@@ -90,23 +90,26 @@ router.post('/', asyncHandler(async (req, res) => {
     routineId = r.id; name = r.name; type = r.type; stretchKey = r.stretch_key;
   }
   if (!Array.isArray(b.items) || !b.items.length || b.items.length > 30) throw v.bad('Add 1–30 exercises.');
-  const items = b.items.map((it, i) => ({
-    exerciseId: v.id(it.exerciseId, `Exercise ${i + 1}`),
-    sets: v.int(it.sets, `Sets for exercise ${i + 1}`, { min: 1, max: 20 }),
-    reps: v.int(it.reps, `Reps for exercise ${i + 1}`, { min: 1, max: 300 }),
-    weight: v.num(it.weight, `Weight for exercise ${i + 1}`, { min: 0, max: 2000, optional: true }),
-    restSeconds: v.int(it.restSeconds, `Rest for exercise ${i + 1}`, { min: 0, max: 900 })
-  }));
-  const ex = await usableExercises(req.userId, items.map((i) => i.exerciseId));
+  const raw = b.items.map((it, i) => ({ ...it, exerciseId: v.id(it.exerciseId, `Exercise ${i + 1}`) }));
+  const ex = await usableExercises(req.userId, raw.map((i) => i.exerciseId));
   // Snapshot names/equipment so history still reads right if the routine changes later.
-  const plan = items.map((i) => ({
-    ...i,
-    name: ex[i.exerciseId].name,
-    group: ex[i.exerciseId].muscle_group,
-    equipment: ex[i.exerciseId].equipment,
-    isBodyweight: ex[i.exerciseId].is_bodyweight,
-    weight: ex[i.exerciseId].is_bodyweight ? null : i.weight
-  }));
+  const plan = raw.map((it, i) => {
+    const e = ex[it.exerciseId];
+    const n = `${e.name} (${i + 1})`;
+    return {
+      exerciseId: it.exerciseId,
+      name: e.name,
+      group: e.muscle_group,
+      equipment: e.equipment,
+      isBodyweight: e.is_bodyweight,
+      isTimed: e.is_timed,
+      sets: v.int(it.sets, `Sets for ${n}`, { min: 1, max: 20 }),
+      reps: e.is_timed ? 1 : v.int(it.reps, `Reps for ${n}`, { min: 1, max: 300 }),
+      seconds: e.is_timed ? v.int(it.seconds, `Seconds for ${n}`, { min: 5, max: 3600 }) : null,
+      weight: e.is_bodyweight ? null : v.num(it.weight, `Weight for ${n}`, { min: 0, max: 2000, optional: true }),
+      restSeconds: v.int(it.restSeconds, `Rest for ${n}`, { min: 0, max: 900 })
+    };
+  });
   const { rows } = await query(
     `INSERT INTO workouts (user_id, routine_id, name, type, stretch_key, plan)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
@@ -121,14 +124,16 @@ router.post('/:id/sets', asyncHandler(async (req, res) => {
   const exerciseId = v.id(req.body.exerciseId, 'Exercise');
   await usableExercises(req.userId, [exerciseId]);
   const weight = v.num(req.body.weight, 'Weight', { min: 0, max: 2000, optional: true });
-  const reps = v.int(req.body.reps, 'Reps', { min: 0, max: 300 });
+  // Timed sets send seconds (and no reps); rep sets send reps.
+  const seconds = v.int(req.body.seconds, 'Seconds', { min: 0, max: 7200, optional: true });
+  const reps = seconds != null && (req.body.reps == null || req.body.reps === '') ? 0 : v.int(req.body.reps, 'Reps', { min: 0, max: 300 });
   const { rows } = await query(
-    `INSERT INTO workout_sets (workout_id, exercise_id, set_number, weight, reps)
+    `INSERT INTO workout_sets (workout_id, exercise_id, set_number, weight, reps, seconds)
      VALUES ($1, $2,
              (SELECT COALESCE(MAX(set_number), 0) + 1 FROM workout_sets WHERE workout_id = $1 AND exercise_id = $2),
-             $3, $4)
+             $3, $4, $5)
      RETURNING id, set_number`,
-    [w.id, exerciseId, weight, reps]
+    [w.id, exerciseId, weight, reps, seconds]
   );
   res.status(201).json({ id: rows[0].id, setNumber: rows[0].set_number });
 }));

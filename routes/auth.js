@@ -1,7 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { query, withTransaction } = require('../db/pool');
-const { seedStarterData } = require('../db/seed');
 const { asyncHandler, HttpError } = require('../middleware/errors');
 const v = require('../middleware/validate');
 
@@ -40,7 +39,6 @@ router.post('/register', asyncHandler(async (req, res) => {
       [email, name, hash]
     );
     await client.query('INSERT INTO user_settings (user_id) VALUES ($1)', [rows[0].id]);
-    await seedStarterData(client, rows[0].id);
     return rows[0];
   });
 

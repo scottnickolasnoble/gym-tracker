@@ -20,7 +20,7 @@ function sendCsv(res, filename, header, rows) {
 
 router.get('/workouts.csv', asyncHandler(async (req, res) => {
   const { rows } = await query(
-    `SELECT w.started_at, w.name AS workout, e.name AS exercise, ws.set_number, ws.weight, ws.reps, w.notes
+    `SELECT w.started_at, w.name AS workout, e.name AS exercise, ws.set_number, ws.weight, ws.reps, ws.seconds, w.notes
        FROM workout_sets ws
        JOIN workouts w ON w.id = ws.workout_id
        JOIN exercises e ON e.id = ws.exercise_id
@@ -28,8 +28,8 @@ router.get('/workouts.csv', asyncHandler(async (req, res) => {
       ORDER BY w.started_at, ws.completed_at`,
     [req.userId]
   );
-  sendCsv(res, 'workouts.csv', ['started_at', 'workout', 'exercise', 'set', 'weight', 'reps', 'notes'],
-    rows.map((r) => [r.started_at.toISOString(), r.workout, r.exercise, r.set_number, r.weight, r.reps, r.notes]));
+  sendCsv(res, 'workouts.csv', ['started_at', 'workout', 'exercise', 'set', 'weight', 'reps', 'seconds', 'notes'],
+    rows.map((r) => [r.started_at.toISOString(), r.workout, r.exercise, r.set_number, r.weight, r.reps, r.seconds, r.notes]));
 }));
 
 router.get('/bodyweight.csv', asyncHandler(async (req, res) => {

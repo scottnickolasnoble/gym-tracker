@@ -37,7 +37,15 @@
         </section>
 
         <section class="card pad stack-lg">
-          <h2>Units &amp; equipment</h2>
+          <h2>Equipment you own</h2>
+          <p class="small muted" style="margin-top:-6px">The exercise picker shows exercises you can do with these. Body weight exercises always show.</p>
+          <div class="equip-grid" role="group" aria-label="Equipment you own">
+            ${Object.entries(GL.EQUIPMENT).map(([k, label]) => `<button class="pill" data-equip="${k}" aria-pressed="${s.equipment.includes(k)}">${label}</button>`).join('')}
+          </div>
+        </section>
+
+        <section class="card pad stack-lg">
+          <h2>Units &amp; plates</h2>
           <div class="setting-row"><span class="name">Weight units</span>
             <div class="seg" role="group" aria-label="Weight units">
               <button data-units="lb" aria-pressed="${s.units === 'lb'}">lb</button><button data-units="kg" aria-pressed="${s.units === 'kg'}">kg</button>
@@ -49,7 +57,7 @@
             <div class="pills" role="group" aria-label="Plates">
               ${options.map((p) => `<button class="pill mono" data-plate="${p}" aria-pressed="${s.plates.includes(p)}">${p}</button>`).join('')}
             </div>
-            <p class="tiny muted">Focus mode uses these to tell you what to load on each side of the bar.</p>
+            <p class="tiny muted">Only matters for barbell lifts: focus mode tells you what to load on each side.</p>
           </div>
         </section>
 
@@ -124,6 +132,11 @@
       s.plates = s.plates.includes(p) ? s.plates.filter((x) => x !== p) : [...s.plates, p];
       b.setAttribute('aria-pressed', String(s.plates.includes(p)));
     }));
+    $$('[data-equip]').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.equip;
+      s.equipment = s.equipment.includes(k) ? s.equipment.filter((x) => x !== k) : [...s.equipment, k];
+      b.setAttribute('aria-pressed', String(s.equipment.includes(k)));
+    }));
     $('#suggest').addEventListener('click', (e) => {
       s.suggestIncrease = !s.suggestIncrease;
       e.currentTarget.setAttribute('aria-checked', String(s.suggestIncrease));
@@ -177,7 +190,7 @@
         method: 'PUT',
         body: {
           name: s.name, units: s.units, barWeight: s.barWeight, plates: s.plates, weeklyGoal: s.weeklyGoal,
-          bodyweightGoal: s.bodyweightGoal, restBig: s.restBig, restOther: s.restOther, suggestIncrease: s.suggestIncrease
+          bodyweightGoal: s.bodyweightGoal, restBig: s.restBig, restOther: s.restOther, suggestIncrease: s.suggestIncrease, equipment: s.equipment
         }
       });
       render();

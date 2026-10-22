@@ -15,7 +15,6 @@
     const u = d.units;
     const weekEnd = GL.addDays(d.weekStart, 6);
     const pct = Math.min(100, Math.round((d.thisWeek.workouts / d.weeklyGoal) * 100));
-    const startHref = d.upNext && d.upNext.kind === 'workout' ? `/plan.html?routine=${d.upNext.routineId}` : '/routines.html';
 
     const bw = d.bodyweight;
     const bwHint = !bw ? 'Not logged yet'
@@ -30,15 +29,11 @@
         </div>
         <div class="actions">
           <button class="btn" id="bw-btn">Log body weight</button>
-          <a class="btn btn-primary" href="${startHref}">+ Start workout</a>
+          <button class="btn btn-primary" data-start>${GL.icon.play(14)} Start workout</button>
         </div>
       </div>
 
-      ${d.active ? `
-        <a class="card pad-sm row-center" href="/focus.html?id=${d.active.id}" style="text-decoration:none; border:2px solid var(--ink);">
-          <span class="grow" style="flex:1"><b>${esc(d.active.name)}</b> is still open</span>
-          <span class="btn btn-sm btn-primary">Resume</span>
-        </a>` : ''}
+      ${todayCard(d)}
 
       <div class="stats">
         <div class="stat">
@@ -96,6 +91,38 @@
     $('#bw-btn').addEventListener('click', () => bodyweightModal(u));
   }
 
+  // The first thing on the page: what's on today, with one big Start button.
+  function todayCard(d) {
+    if (d.active) {
+      return `<div class="card today-card dark">
+        <div><p class="label">In progress</p><p class="big-name">${esc(d.active.name)}</p><p class="small muted">Pick up where you left off.</p></div>
+        <a class="btn btn-light" href="/focus.html?id=${d.active.id}">${GL.icon.play(16)} Resume</a></div>`;
+    }
+    const today = d.days.find((x) => x.isToday);
+    const p = today.plan;
+    if (today.done.length) {
+      return `<div class="card today-card">
+        <div><p class="label">Today</p><p class="big-name">${esc(today.done[0].name)} done ${GL.icon.check(22)}</p>
+        <p class="small muted">${d.upNext ? 'Next up: ' + esc(d.upNext.kind === 'workout' ? d.upNext.routineName : 'Stretch') + ' (' + (d.upNext.daysAway === 1 ? 'tomorrow' : GL.DOW[d.upNext.day]) + ')' : 'Nice work.'}</p></div>
+        <button class="btn" data-start>Do something else</button></div>`;
+    }
+    if (p.kind === 'workout') {
+      return `<div class="card today-card dark">
+        <div><p class="label">Today${p.startTime ? ' · ' + GL.time12(p.startTime) : ''}</p><p class="big-name">${esc(p.routineName)}</p>
+        <p class="small muted">${d.upNext && d.upNext.items ? d.upNext.items.length + ' exercises' : ''}${p.stretchAfter ? ' · then a cool-down stretch' : ''}</p></div>
+        <a class="btn btn-light" href="/plan.html?routine=${p.routineId}">${GL.icon.play(16)} Start</a></div>`;
+    }
+    if (p.kind === 'stretch') {
+      const k = p.stretchKey || 'full';
+      return `<div class="card today-card dark">
+        <div><p class="label">Today</p><p class="big-name">Stretch · ${esc(GL.STRETCH_TITLES[k])}</p></div>
+        <a class="btn btn-light" href="/stretch.html?routine=${k}&amp;start=1">${GL.icon.play(16)} Start</a></div>`;
+    }
+    return `<div class="card today-card">
+      <div><p class="label">Today</p><p class="big-name">Rest day</p><p class="small muted">Nothing planned. Want to train anyway?</p></div>
+      <button class="btn btn-primary" data-start>${GL.icon.play(14)} Pick a workout</button></div>`;
+  }
+
   function dayCard(day, i) {
     const p = day.plan;
     const label = p.kind === 'workout' ? p.routineName : p.kind === 'stretch' ? 'Stretch' : '';
@@ -134,7 +161,7 @@
 
   function upNextCard(n) {
     if (!n) {
-      return `<div class="card pad stack"><p class="muted">Nothing on the schedule.</p><a class="btn" href="/schedule.html">Set up your week</a></div>`;
+      return `<div class="card pad stack"><p class="muted">Nothing on the schedule.</p><a class="btn" href="/schedule.html">Set up your week</a><a class="btn" href="/routines.html">Build a workout</a></div>`;
     }
     const when = n.daysAway === 0 ? 'Today' : n.daysAway === 1 ? 'Tomorrow' : GL.DOW[n.day];
     if (n.kind === 'stretch') {
@@ -153,10 +180,10 @@
         ${items.map((it) => `
           <div class="row-between" style="padding:7px 0; border-top:1px solid var(--line-soft); font-size:14px">
             <span>${esc(it.name)}</span>
-            <span class="mono tiny muted">${it.sets} × ${it.reps}${it.weight != null ? ' · ' + GL.num(it.weight) : ''}</span>
+            <span class="mono tiny muted">${GL.planText(it)}</span>
           </div>`).join('')}
       </div>
-      <a class="btn btn-primary" href="/plan.html?routine=${n.routineId}">Start ${esc(n.routineName)}</a>
+      <a class="btn" href="/routine.html?id=${n.routineId}">View workout</a>
     </div>`;
   }
 

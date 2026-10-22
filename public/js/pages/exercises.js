@@ -34,8 +34,16 @@
 
   function render() {
     const ex = detail.exercise;
-    const bw = ex.isBodyweight;
-    const metric = (s) => (bw ? s.maxReps : s.e1rm);
+    // What to track: hold time for timed exercises, reps for body weight, estimated 1RM otherwise.
+    const mode = ex.isTimed ? 'time' : ex.isBodyweight ? 'reps' : 'weight';
+    const bw = mode !== 'weight';
+    const metric = (s) => (mode === 'time' ? s.maxSeconds : mode === 'reps' ? s.maxReps : s.e1rm);
+    const show = (val) => (mode === 'time' ? GL.secs(val) : mode === 'reps' ? `${val} <small>reps</small>` : `${GL.num(val)} <small>${units}</small>`);
+    const L = {
+      time: ['Longest hold', 'Longest hold per session', 'Your longest timed set each session.', 'Longest'],
+      reps: ['Most reps in a set', 'Most reps per session', 'Your highest-rep set each session.', 'Max reps'],
+      weight: ['Estimated 1-rep max', 'Estimated 1-rep max', 'Worked out from your best set each session (weight × reps). Filled dots are new records.', 'Est. 1RM']
+    }[mode];
     const days = { '1M': 31, '3M': 92, '1Y': 366, All: 100000 }[range];
     const cutoff = Date.now() - days * 86400000;
     const shown = detail.sessions.filter((s) => new Date(s.date).getTime() >= cutoff && metric(s) != null);
@@ -67,11 +75,11 @@
           </div>
 
           <div class="stats">
-            <div class="stat"><p class="label">${bw ? 'Most reps in a set' : 'Estimated 1-rep max'}</p>
-              <p class="value">${lastS ? (bw ? lastS.maxReps : GL.num(lastS.e1rm) + ` <small>${units}</small>`) : '—'}</p>
-              <p class="hint ${first && lastS && metric(lastS) > metric(first) ? 'good' : ''}">${first && lastS && first !== lastS ? changeText(metric(lastS) - metric(first), bw) : 'Log a few sessions to see a trend'}</p></div>
+            <div class="stat"><p class="label">${L[0]}</p>
+              <p class="value">${lastS ? show(metric(lastS)) : '—'}</p>
+              <p class="hint ${first && lastS && metric(lastS) > metric(first) ? 'good' : ''}">${first && lastS && first !== lastS ? changeText(metric(lastS) - metric(first), mode) : 'Log a few sessions to see a trend'}</p></div>
             <div class="stat"><p class="label">Best ever</p>
-              <p class="value">${best ? (bw ? `${best.maxReps} <small>reps</small>` : `${GL.num(best.bestSet.weight)} × ${best.bestSet.reps}`) : '—'}</p>
+              <p class="value">${best ? (mode === 'weight' ? `${GL.num(best.bestSet.weight)} × ${best.bestSet.reps}` : show(metric(best))) : '—'}</p>
               <p class="hint">${best ? GL.shortDate(best.date) : ''}</p></div>
             <div class="stat"><p class="label">Sessions</p><p class="value">${detail.sessions.length}</p>
               <p class="hint">${detail.sessions.length ? 'Since ' + GL.shortDate(detail.sessions[0].date) : 'Not done yet'}</p></div>
@@ -79,13 +87,13 @@
 
           <section class="card pad stack">
             <div class="row-between" style="align-items:center; flex-wrap:wrap">
-              <h2>${bw ? 'Most reps per session' : 'Estimated 1-rep max'}</h2>
+              <h2>${L[1]}</h2>
               <div class="seg" role="group" aria-label="Range">
                 ${['1M', '3M', '1Y', 'All'].map((x) => `<button data-range="${x}" aria-pressed="${range === x}">${x}</button>`).join('')}
               </div>
             </div>
             ${chart(shown, metric, bw)}
-            <p class="tiny muted">${bw ? 'Your highest-rep set each session.' : 'Worked out from your best set each session (weight × reps). Filled dots are new records.'}</p>
+            <p class="tiny muted">${L[2]}</p>
           </section>
 
           <div class="split">
@@ -105,14 +113,14 @@
               <div class="card grid-table">
                 <div style="min-width:420px">
                   <div class="gt-row gt-head" style="grid-template-columns:70px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr)">
-                    <span>Date</span><span>Sets</span><span style="text-align:right">Volume</span><span style="text-align:right">${bw ? 'Max reps' : 'Est. 1RM'}</span>
+                    <span>Date</span><span>Sets</span><span style="text-align:right">Volume</span><span style="text-align:right">${L[3]}</span>
                   </div>
                   ${[...detail.sessions].reverse().slice(0, 10).map((s) => `
                     <div class="gt-row" style="grid-template-columns:70px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr)">
                       <a class="small" style="font-weight:600" href="/history.html?date=${s.date.slice(0, 10)}">${GL.shortDate(s.date)}</a>
-                      <span class="mono tiny">${s.sets.map((x) => `${GL.weight(x.weight)}×${x.reps}`).join(' · ')}</span>
+                      <span class="mono tiny">${s.sets.map(GL.setText).join(' · ')}</span>
                       <span class="mono small" style="text-align:right">${bw ? '—' : GL.num(s.volume)}</span>
-                      <span class="mono small" style="text-align:right">${bw ? s.maxReps : GL.num(s.e1rm)}</span>
+                      <span class="mono small" style="text-align:right">${mode === 'time' ? GL.secs(s.maxSeconds) : mode === 'reps' ? s.maxReps : GL.num(s.e1rm)}</span>
                     </div>`).join('') || '<p class="empty">No sessions yet.</p>'}
                 </div>
               </div>
@@ -123,9 +131,10 @@
     wire();
   }
 
-  const changeText = (diff, bw) => {
+  const changeText = (diff, mode) => {
     const r = Math.round(diff * 10) / 10;
-    return `${r >= 0 ? '+' : ''}${GL.num(r)} ${bw ? 'reps' : units} in this range`;
+    const unit = mode === 'time' ? 's' : mode === 'reps' ? ' reps' : ' ' + units;
+    return `${r >= 0 ? '+' : ''}${GL.num(r)}${unit} in this range`;
   };
 
   function listRows() {
@@ -134,7 +143,7 @@
     return rows.map((e) => `
       <a class="list-row ${e.id === selectedId ? 'selected' : ''}" href="/exercises.html?id=${e.id}" data-id="${e.id}" style="padding:11px 14px; gap:10px">
         ${GL.typeDot(e.group)}<span style="flex:1; font-size:14px; ${e.id === selectedId ? 'font-weight:600' : ''}">${esc(e.name)}</span>
-        <span class="mono tiny muted">${e.isBodyweight ? (e.maxReps ? e.maxReps + ' reps' : '') : (e.bestE1rm ? GL.num(e.bestE1rm) : '')}</span>
+        <span class="mono tiny muted">${e.isTimed ? (e.maxSeconds ? GL.secs(e.maxSeconds) : '') : e.isBodyweight ? (e.maxReps ? e.maxReps + ' reps' : '') : (e.bestE1rm ? GL.num(e.bestE1rm) : '')}</span>
       </a>`).join('') || '<p class="empty">Nothing matches.</p>';
   }
 
@@ -157,7 +166,7 @@
     });
     const grid = [0, 1, 2, 3].map((k) => lo + ((hi - lo) * k) / 3);
     const labelIdx = [...new Set([0, Math.floor((pts.length - 1) / 2), pts.length - 1])];
-    return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`${bw ? 'Max reps' : 'Estimated one-rep max'} from ${GL.num(ys[0])} to ${GL.num(ys[ys.length - 1])} over ${sessions.length} sessions`)}">
+    return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`${bw ? 'Best set' : 'Estimated one-rep max'} from ${GL.num(ys[0])} to ${GL.num(ys[ys.length - 1])} over ${sessions.length} sessions`)}">
       ${grid.map((g) => `<line x1="${L}" x2="${W - R}" y1="${y(g)}" y2="${y(g)}" stroke="#E2E0D6"></line>
         <text x="${L - 8}" y="${y(g) + 4}" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="11" fill="#5B6760">${Math.round(g)}</text>`).join('')}
       <polyline fill="none" stroke="#4A6FA5" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${pts.map((p) => `${p.x},${p.y}`).join(' ')}"></polyline>

@@ -2,7 +2,9 @@
 
 A personal gym tracker in the same style as the Ledger budget tracker. It includes:
 
-- workouts you build yourself
+- workouts you build yourself (drag exercises into order), plus home templates for dumbbells, an adjustable bench and bands
+- timed exercises (plank, wall sit…) with a start/pause countdown in focus mode
+- a Start button everywhere: header, the middle of the phone tab bar, and a Today card on the dashboard
 - a weekly schedule
 - a dark one-exercise-at-a-time focus mode with plate math and a rest timer
 - 10–15 minute stretching routines with drawings
@@ -148,6 +150,8 @@ Everything except `/api/auth/*` needs you to be logged in. Requests that change 
 | GET, POST | `/api/routines` | List or create workouts |
 | GET, PUT, DELETE | `/api/routines/:id` | One workout |
 | GET | `/api/routines/:id/plan` | "Get ready" data: last time + suggested weight |
+| GET, POST | `/api/routines/templates` | List or add a home template |
+| PUT | `/api/routines/:id/order` | Save a new exercise order |
 | GET, PUT | `/api/schedule` | The 7-day plan |
 | GET | `/api/workouts?from=&to=&tz=` | History for a date range |
 | GET | `/api/workouts/active` | An unfinished workout to resume |

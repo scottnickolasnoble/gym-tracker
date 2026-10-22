@@ -87,7 +87,7 @@
             ${opt('stretch', 'Stretch only', '10–15 min', 'stretch', d.kind === 'stretch')}
             ${opt('rest', 'Rest', 'Recovery day', 'rest', d.kind === 'rest')}
           </div>
-          ${routines.length ? '' : '<p class="small muted">No workouts yet. <a href="/routines.html">Build one</a> first.</p>'}
+          ${routines.length ? '' : '<p class="small muted">No workouts yet. <a href="/routine.html?new=1">Build one</a> first.</p>'}
         </div>
         ${d.kind === 'workout' ? `
           <div class="setting-row">

@@ -112,3 +112,16 @@ CREATE TABLE IF NOT EXISTS bodyweight_entries (
   weight    NUMERIC(6,1) NOT NULL CHECK (weight > 0),
   UNIQUE (user_id, logged_on)
 );
+
+-- ---------- Version 2 additions (safe to re-run on an existing database) ----------
+
+-- Timed exercises (plank, wall sit...) and what equipment an exercise needs.
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS is_timed BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS needs TEXT[] NOT NULL DEFAULT '{}';
+
+-- For timed exercises: how long each set lasts (planned and actually done).
+ALTER TABLE routine_exercises ADD COLUMN IF NOT EXISTS seconds INTEGER CHECK (seconds BETWEEN 1 AND 3600);
+ALTER TABLE workout_sets ADD COLUMN IF NOT EXISTS seconds INTEGER CHECK (seconds BETWEEN 0 AND 7200);
+
+-- The equipment you own. Body weight is always available.
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS equipment TEXT[] NOT NULL DEFAULT '{dumbbells,bench,bands}';

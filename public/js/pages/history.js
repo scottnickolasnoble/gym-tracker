@@ -126,7 +126,7 @@
           <div class="list-row" style="display:block">
             <div class="row-between"><span style="font-weight:600; font-size:14px">${esc(g.name)}</span>
               ${w.prs.includes(g.name) ? '<span class="chip pr">PR</span>' : ''}</div>
-            <p class="mono tiny" style="margin-top:3px; color:var(--ink-2)">${g.sets.map((s) => `${GL.weight(s.weight)}×${s.reps}`).join(' · ')}</p>
+            <p class="mono tiny" style="margin-top:3px; color:var(--ink-2)">${g.sets.map(GL.setText).join(' · ')}</p>
           </div>`).join('') || '<p class="empty">No sets logged.</p>'}
         ${w.stretches.map((s) => `<div class="list-row">${GL.typeDot('stretch')}<span class="grow">${esc(stretchName(s.key))} stretch</span><span class="mono small">${GL.clock(s.seconds)}</span></div>`).join('')}
         <div class="list-row" style="display:block">
