@@ -60,7 +60,7 @@
       </div>
 
       <section class="stack">
-        <h2>This week</h2>
+        <div class="row-between"><h2>This week</h2>${d.days.some((x) => x.plan.note && x.date >= d.today) ? '<button class="btn btn-sm btn-ghost" id="reset-pushes">Back to normal plan</button>' : '<span class="tiny muted">Tap a day to push it</span>'}</div>
         <div class="week">${d.days.map(dayCard).join('')}</div>
       </section>
 
@@ -89,6 +89,13 @@
       </div>`;
 
     $('#bw-btn').addEventListener('click', () => bodyweightModal(u));
+    // Push or skip a day (today card's "Can't make it?" and the week strip).
+    GL.$$('[data-push]').forEach((b) => b.addEventListener('click', () => {
+      const day = d.days.find((x) => x.date === b.dataset.push);
+      GL.pushSheet({ date: day.date, ...day.plan }, load);
+    }));
+    const reset = $('#reset-pushes');
+    if (reset) reset.addEventListener('click', () => GL.resetPushes(load));
   }
 
   // The first thing on the page: what's on today, with one big Start button.
@@ -110,36 +117,48 @@
       return `<div class="card today-card dark">
         <div><p class="label">Today${p.startTime ? ' · ' + GL.time12(p.startTime) : ''}</p><p class="big-name">${esc(p.routineName)}</p>
         <p class="small muted">${d.upNext && d.upNext.items ? d.upNext.items.length + ' exercises' : ''}${p.stretchAfter ? ' · then a cool-down stretch' : ''}</p></div>
-        <a class="btn btn-light" href="/plan.html?routine=${p.routineId}">${GL.icon.play(16)} Start</a></div>`;
+        <div class="stack" style="align-items:center; gap:4px">
+          <a class="btn btn-light" href="/plan.html?routine=${p.routineId}">${GL.icon.play(16)} Start</a>
+          <button class="cant" data-push="${today.date}">Can't make it?</button>
+        </div></div>`;
     }
     if (p.kind === 'stretch') {
       const k = p.stretchKey || 'full';
       return `<div class="card today-card dark">
         <div><p class="label">Today</p><p class="big-name">Stretch · ${esc(GL.STRETCH_TITLES[k])}</p></div>
-        <a class="btn btn-light" href="/stretch.html?routine=${k}&amp;start=1">${GL.icon.play(16)} Start</a></div>`;
+        <div class="stack" style="align-items:center; gap:4px">
+          <a class="btn btn-light" href="/stretch.html?routine=${k}&amp;start=1">${GL.icon.play(16)} Start</a>
+          <button class="cant" data-push="${today.date}">Can't make it?</button>
+        </div></div>`;
     }
     return `<div class="card today-card">
-      <div><p class="label">Today</p><p class="big-name">Rest day</p><p class="small muted">Nothing planned. Want to train anyway?</p></div>
+      <div><p class="label">Today</p><p class="big-name">Rest day</p><p class="small muted">${p.note === 'skipped' ? 'You skipped today.' : p.note === 'pushed-off' ? 'You pushed today\'s workout.' : 'Nothing planned.'} Want to train anyway?</p></div>
       <button class="btn btn-primary" data-start>${GL.icon.play(14)} Pick a workout</button></div>`;
   }
 
+  // Planned days that aren't done yet can be tapped to push or skip them.
   function dayCard(day, i) {
     const p = day.plan;
     const label = p.kind === 'workout' ? p.routineName : p.kind === 'stretch' ? 'Stretch' : '';
     const type = day.done.length ? day.done[0].type : p.kind === 'workout' ? p.routineType : 'stretch';
     const done = day.done.length > 0 || (p.kind === 'stretch' && day.stretched);
     const past = day.date < GL.todayLocal();
-    let note = 'Rest';
+    let note = p.note === 'skipped' ? 'Skipped' : p.note === 'pushed-off' ? 'Pushed' : 'Rest';
     if (done) note = 'Done';
-    else if (p.kind !== 'rest') note = past ? 'Missed' : 'Planned';
+    else if (p.kind !== 'rest') note = past ? 'Missed · push?' : 'Planned';
     const chipClass = done ? `chip t t-${type}` : 'chip plain';
     const doneName = day.done.length ? day.done[0].name : label;
+    const canPush = !done && p.kind !== 'rest';
+    const tag = p.note === 'moved' && !done ? '<span class="note-tag">Moved</span>' : '';
+    const tagName = canPush ? 'button' : 'div';
     return `
-      <div class="day-card ${p.kind === 'rest' && !day.done.length ? 'rest' : ''} ${day.isToday ? 'today' : ''}">
-        <p class="dow">${GL.DOW3[i]} <b>${GL.dayNum(day.date)}</b></p>
+      <${tagName} class="day-card ${p.kind === 'rest' && !day.done.length ? 'rest' : ''} ${day.isToday ? 'today' : ''}"
+        ${canPush ? `data-push="${day.date}" aria-label="${esc(label)} on ${GL.longDate(day.date)}. Tap to push or skip."` : ''}>
+        <span class="dow">${GL.DOW3[i]} <b>${GL.dayNum(day.date)}</b></span>
         ${doneName ? `<span class="${chipClass}" style="align-self:flex-start">${esc(doneName)}</span>` : ''}
-        <p class="note">${note}${day.stretched && p.kind !== 'stretch' ? ' + stretch' : ''}</p>
-      </div>`;
+        ${tag}
+        <span class="note">${note}${day.stretched && p.kind !== 'stretch' ? ' + stretch' : ''}</span>
+      </${tagName}>`;
   }
 
   function recentRow(w, u) {

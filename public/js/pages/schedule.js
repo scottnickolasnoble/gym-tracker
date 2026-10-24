@@ -13,11 +13,13 @@
 
   async function load() {
     try {
-      [week, routines] = await Promise.all([api('/schedule'), api('/routines')]);
+      const monday = GL.addDays(GL.todayLocal(), -GL.weekdayIndex(GL.todayLocal()));
+      [week, routines, days] = await Promise.all([api('/schedule'), api('/routines'), api(`/schedule/days?from=${monday}&to=${GL.addDays(monday, 27)}`)]);
       render();
     } catch (err) { GL.fail(err); }
   }
 
+  let days = []; // real dates, including pushed/skipped days
   const routineById = (id) => routines.find((r) => r.id === id);
 
   function dayInfo(d) {
@@ -54,7 +56,7 @@
 
       <div class="split">
         <section class="main">${editor()}</section>
-        <aside class="side">${calendar()}</aside>
+        <aside class="side">${agenda()}${calendar()}</aside>
       </div>`;
 
     $$('[data-day]').forEach((b) => b.addEventListener('click', () => { sel = Number(b.dataset.day); render(); }));
@@ -66,6 +68,13 @@
     const t = $('#start-time');
     if (t) t.addEventListener('change', () => { week[sel].startTime = t.value || null; change(); });
     $('#save').addEventListener('click', save);
+    $$('[data-push]').forEach((b) => b.addEventListener('click', () => {
+      if (dirty && !confirm('Save your weekly plan changes first? Pushing reloads this page.')) return;
+      const go = () => GL.pushSheet(days.find((x) => x.date === b.dataset.push), load);
+      if (dirty) save().then(go); else go();
+    }));
+    const reset = $('#reset-pushes');
+    if (reset) reset.addEventListener('click', () => GL.resetPushes(load));
   }
 
   function editor() {
@@ -109,14 +118,34 @@
       </div>`;
   }
 
+  // The next two weeks on real dates, with a Push button on each planned day.
+  function agenda() {
+    const today = GL.todayLocal();
+    const next = days.filter((d) => d.date >= today && d.date <= GL.addDays(today, 13));
+    const changed = next.some((d) => d.note);
+    return `
+      <div class="card stack" style="gap:0; overflow:hidden">
+        <div class="row-between" style="padding:16px 14px 10px; align-items:center"><h2>Next two weeks</h2>
+          ${changed ? '<button class="btn btn-sm btn-ghost" id="reset-pushes">Back to normal</button>' : ''}</div>
+        ${next.map((d) => `
+          <div class="agenda-row ${d.kind === 'rest' ? 'rest' : ''}">
+            <span class="when">${d.date === today ? 'Today' : d.date === GL.addDays(today, 1) ? 'Tomorrow' : GL.DOW3[GL.weekdayIndex(d.date)] + ' ' + GL.shortDate(d.date).split(' ')[0] + ' ' + GL.dayNum(d.date)}</span>
+            <span class="what">${d.kind !== 'rest' ? GL.typeDot(GL.planType(d)) : ''}${esc(GL.planLabel(d))}${d.note ? `<span class="note-tag">${GL.NOTE_LABEL[d.note]}</span>` : ''}</span>
+            ${d.kind !== 'rest' ? `<button class="btn btn-sm" data-push="${d.date}">Push</button>` : ''}
+          </div>`).join('')}
+      </div>`;
+  }
+
   function calendar() {
     const today = GL.todayLocal();
     const monday = GL.addDays(today, -GL.weekdayIndex(today));
     const cells = [];
     for (let i = 0; i < 28; i++) {
       const date = GL.addDays(monday, i);
-      const d = week[i % 7];
-      const info = dayInfo(d);
+      // Pushed or skipped dates come from the server; everything else follows the plan above (even unsaved edits).
+      const real = days.find((x) => x.date === date);
+      const d = real && real.note ? real : week[i % 7];
+      const info = real && real.note ? { type: GL.planType(real) } : dayInfo(d);
       cells.push(`<div class="cal-cell ${date === today ? 'today' : ''} ${(i % 7) === sel ? 'selected' : ''}">
         <span class="n">${GL.dayNum(date)}</span>
         <span class="dots">${d.kind !== 'rest' ? `<span class="dot t t-${info.type}"></span>` : ''}</span>
@@ -152,7 +181,7 @@
     try {
       week = await api('/schedule', { method: 'PUT', body: { days: week } });
       dirty = false;
-      render();
+      await load();
       GL.toast('Schedule saved.');
     } catch (err) { GL.fail(err); }
   }

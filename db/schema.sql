@@ -125,3 +125,17 @@ ALTER TABLE workout_sets ADD COLUMN IF NOT EXISTS seconds INTEGER CHECK (seconds
 
 -- The equipment you own. Body weight is always available.
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS equipment TEXT[] NOT NULL DEFAULT '{dumbbells,bench,bands}';
+
+-- ---------- Version 3: pushing or skipping a single day ----------
+-- One row per changed date. It overrides the weekly plan for that date only.
+CREATE TABLE IF NOT EXISTS schedule_overrides (
+  user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  on_date       DATE NOT NULL,
+  kind          TEXT NOT NULL CHECK (kind IN ('workout', 'stretch', 'rest')),
+  routine_id    INTEGER REFERENCES routines(id) ON DELETE SET NULL,
+  stretch_key   TEXT,
+  stretch_after BOOLEAN NOT NULL DEFAULT false,
+  start_time    TEXT,
+  note          TEXT NOT NULL DEFAULT 'moved' CHECK (note IN ('moved', 'skipped', 'pushed-off')),
+  PRIMARY KEY (user_id, on_date)
+);

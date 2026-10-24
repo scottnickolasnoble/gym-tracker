@@ -2,36 +2,11 @@ const express = require('express');
 const { query, withTransaction } = require('../db/pool');
 const { asyncHandler } = require('../middleware/errors');
 const v = require('../middleware/validate');
+const { HttpError } = require('../middleware/errors');
+const { todayIn, addDays, daysBetween, loadWeek, resolveDays, writeOverrides, planPush } = require('../lib/plan');
 
 const router = express.Router();
 const STRETCHES = ['push', 'pull', 'legs', 'full'];
-
-async function loadWeek(userId) {
-  const { rows } = await query(
-    `SELECT d.*, r.name AS routine_name, r.type AS routine_type, r.stretch_key AS routine_stretch
-       FROM schedule_days d LEFT JOIN routines r ON r.id = d.routine_id
-      WHERE d.user_id = $1`,
-    [userId]
-  );
-  const byDay = Object.fromEntries(rows.map((r) => [r.day, r]));
-  const week = [];
-  for (let day = 0; day < 7; day++) {
-    const r = byDay[day];
-    // A workout whose routine was deleted turns back into a rest day.
-    const kind = !r ? 'rest' : (r.kind === 'workout' && !r.routine_id ? 'rest' : r.kind);
-    week.push({
-      day,
-      kind,
-      routineId: kind === 'workout' ? r.routine_id : null,
-      routineName: kind === 'workout' ? r.routine_name : null,
-      routineType: kind === 'workout' ? r.routine_type : null,
-      stretchKey: kind === 'stretch' ? r.stretch_key : (kind === 'workout' ? r.routine_stretch : null),
-      stretchAfter: kind === 'workout' ? Boolean(r.stretch_after) : false,
-      startTime: kind === 'rest' ? null : (r && r.start_time)
-    });
-  }
-  return week;
-}
 
 router.get('/', asyncHandler(async (req, res) => {
   res.json(await loadWeek(req.userId));
@@ -73,6 +48,55 @@ router.put('/', asyncHandler(async (req, res) => {
     }
   });
   res.json(await loadWeek(req.userId));
+}));
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const date = (value, field) => {
+  if (typeof value !== 'string' || !DATE.test(value)) throw v.bad(`${field} must look like 2026-10-24.`);
+  return value;
+};
+
+// What's planned on real dates: ?from=2026-10-19&to=2026-11-15
+router.get('/days', asyncHandler(async (req, res) => {
+  const from = date(req.query.from, 'from');
+  const to = date(req.query.to, 'to');
+  if (to < from || daysBetween(from, to) > 70) throw v.bad('Pick a range of 70 days or less.');
+  res.json(await resolveDays(req.userId, from, to));
+}));
+
+// Can't make it: { date, to?, tz }. Moves that day's workout (default: to the next day).
+// Anything already on the new day gets bumped back a day too, until it reaches a rest day.
+router.post('/push', asyncHandler(async (req, res) => {
+  const today = todayIn(v.timezone(req.body.tz));
+  const from = date(req.body.date, 'date');
+  const target = req.body.to ? date(req.body.to, 'to') : addDays(from > today ? from : today, from >= today ? 1 : 0);
+  if (from < addDays(today, -7)) throw v.bad('You can only push days from the last week.');
+  if (target < today) throw v.bad('Pick today or a later day.');
+  if (target === from) throw v.bad('Pick a different day.');
+  if (daysBetween(today, target) > 14) throw v.bad('Pick a day in the next two weeks.');
+
+  const days = await resolveDays(req.userId, from < target ? from : target, addDays(target, 21));
+  const source = days.find((d) => d.date === from);
+  if (!source || source.kind === 'rest') throw new HttpError(400, 'Nothing is planned that day.');
+  const writes = planPush(days, from, target);
+  await withTransaction((client) => writeOverrides(client, req.userId, writes));
+  res.json({ moved: Object.keys(writes).filter((d) => writes[d].note === 'moved').sort() });
+}));
+
+// Skip a day: { date, tz }
+router.post('/skip', asyncHandler(async (req, res) => {
+  const today = todayIn(v.timezone(req.body.tz));
+  const d = date(req.body.date, 'date');
+  if (d < addDays(today, -7) || daysBetween(today, d) > 14) throw v.bad('Pick a day within a week or two of today.');
+  await withTransaction((client) => writeOverrides(client, req.userId, { [d]: { kind: 'rest', note: 'skipped' } }));
+  res.json({ ok: true });
+}));
+
+// Undo every push/skip from today on, back to the normal weekly plan: { tz }
+router.post('/reset', asyncHandler(async (req, res) => {
+  const today = todayIn(v.timezone(req.body.tz));
+  const { rowCount } = await query('DELETE FROM schedule_overrides WHERE user_id = $1 AND on_date >= $2', [req.userId, today]);
+  res.json({ cleared: rowCount });
 }));
 
 module.exports = router;

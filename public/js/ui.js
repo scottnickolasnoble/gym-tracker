@@ -209,9 +209,9 @@
   GL.startSheet = async () => {
     const m = GL.modal('<p class="muted">Loading…</p>', { sheet: true });
     try {
-      const [routines, week, active] = await Promise.all([GL.api('/routines'), GL.api('/schedule'), GL.api('/workouts/active')]);
-      const todayIdx = GL.weekdayIndex(GL.todayLocal());
-      const plan = week[todayIdx];
+      const todayIso = GL.todayLocal();
+      const [routines, days, active] = await Promise.all([GL.api('/routines'), GL.api(`/schedule/days?from=${todayIso}&to=${todayIso}`), GL.api('/workouts/active')]);
+      const plan = days[0];
       const planned = plan.kind === 'workout' ? routines.find((r) => r.id === plan.routineId) : null;
 
       let today = '';
@@ -258,6 +258,73 @@
         </div>`;
       m.el.querySelector('[data-close]').addEventListener('click', m.close);
     } catch (err) { m.close(); GL.fail(err); }
+  };
+
+  // ---------- Push or skip a planned day ----------
+  // day = one entry from /api/schedule/days. onDone() runs after a change is saved.
+  const planLabel = (d) => (d.kind === 'workout' ? d.routineName : d.kind === 'stretch' ? 'Stretch' : 'Rest');
+  const planType = (d) => (d.kind === 'workout' ? d.routineType : d.kind === 'stretch' ? 'stretch' : 'rest');
+  GL.planLabel = planLabel;
+  GL.planType = planType;
+  GL.NOTE_LABEL = { moved: 'Moved here', 'pushed-off': 'Pushed', skipped: 'Skipped' };
+
+  GL.pushSheet = async (day, onDone) => {
+    const today = GL.todayLocal();
+    const m = GL.modal('<p class="muted">Loading…</p>', { sheet: true });
+    try {
+      const upcoming = await GL.api(`/schedule/days?from=${today}&to=${GL.addDays(today, 13)}`);
+      const missed = day.date < today;
+      const quick = missed ? today : GL.addDays(day.date, 1);
+      const whenText = day.date === today ? 'today' : missed ? `${GL.longDate(day.date)} (missed)` : GL.longDate(day.date);
+      const dayName = (iso) => (iso === today ? 'Today' : iso === GL.addDays(today, 1) ? 'Tomorrow' : GL.longDate(iso));
+      const choices = upcoming.filter((d) => d.date !== day.date && d.date !== quick);
+
+      m.el.innerHTML = `
+        <div class="row-between" style="align-items:center"><h2>Can't make it?</h2>
+          <button class="icon-btn" data-close aria-label="Close">${GL.icon.x(18)}</button></div>
+        <p class="row-center" style="gap:8px">${GL.typeDot(planType(day))}<b>${GL.esc(planLabel(day))}</b><span class="muted">· ${whenText}</span></p>
+        <button class="btn btn-primary" data-to="${quick}" style="min-height:52px; font-size:15px">
+          ${missed ? 'Do it today instead' : `Push to ${quick === GL.addDays(today, 1) ? 'tomorrow' : dayName(quick)}`}
+        </button>
+        <div class="stack">
+          <p class="label">Or pick a day</p>
+          <div class="push-days">
+            ${choices.map((d) => `
+              <button class="push-day" data-to="${d.date}">
+                <span class="pd-date">${dayName(d.date)}</span>
+                <span class="pd-plan">${GL.typeDot(planType(d))}${GL.esc(planLabel(d))}</span>
+              </button>`).join('')}
+          </div>
+          <p class="tiny muted">If something is already planned on that day, it moves back a day too, and so on until it reaches a rest day. Your weekly plan doesn't change.</p>
+        </div>
+        <button class="btn btn-ghost" data-skip>Skip it this time</button>`;
+
+      const finish = (msg) => { m.close(); GL.toast(msg); if (onDone) onDone(); };
+      m.el.querySelector('[data-close]').addEventListener('click', m.close);
+      m.el.querySelectorAll('[data-to]').forEach((b) => b.addEventListener('click', async () => {
+        b.disabled = true;
+        try {
+          const res = await GL.api('/schedule/push', { method: 'POST', body: { date: day.date, to: b.dataset.to, tz: GL.tz() } });
+          const bumped = res.moved.length - 1;
+          finish(`Moved to ${['Today', 'Tomorrow'].includes(dayName(b.dataset.to)) ? dayName(b.dataset.to).toLowerCase() : dayName(b.dataset.to)}.${bumped > 0 ? ` ${bumped} other day${bumped > 1 ? 's' : ''} moved back too.` : ''}`);
+        } catch (err) { b.disabled = false; GL.fail(err); }
+      }));
+      m.el.querySelector('[data-skip]').addEventListener('click', async () => {
+        try {
+          await GL.api('/schedule/skip', { method: 'POST', body: { date: day.date, tz: GL.tz() } });
+          finish('Skipped. Rest up.');
+        } catch (err) { GL.fail(err); }
+      });
+    } catch (err) { m.close(); GL.fail(err); }
+  };
+
+  GL.resetPushes = async (onDone) => {
+    if (!confirm('Undo every push and skip from today on, and go back to your normal weekly plan?')) return;
+    try {
+      await GL.api('/schedule/reset', { method: 'POST', body: { tz: GL.tz() } });
+      GL.toast('Back to your normal plan.');
+      if (onDone) onDone();
+    } catch (err) { GL.fail(err); }
   };
 
   // ---------- Header + phone tab bar ----------

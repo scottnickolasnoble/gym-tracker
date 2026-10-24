@@ -3,7 +3,7 @@ const { query } = require('../db/pool');
 const { asyncHandler } = require('../middleware/errors');
 const v = require('../middleware/validate');
 const { summarize, personalRecords } = require('../lib/stats');
-const { loadWeek } = require('./schedule');
+const { resolveDays } = require('../lib/plan');
 
 const router = express.Router();
 
@@ -55,7 +55,9 @@ router.get('/', asyncHandler(async (req, res) => {
   }
 
   // This week, day by day: what's planned and what you actually did.
-  const schedule = await loadWeek(userId);
+  // Real dates, so pushed and skipped days show up. Looks a week past Sunday for "up next".
+  const resolved = await resolveDays(userId, weekStart, addDays(weekStart, 13));
+  const schedule = resolved.slice(0, 7);
   const { rows: weekWorkouts } = await query(
     `SELECT id, name, type, finished_at IS NOT NULL AS finished,
             to_char(started_at AT TIME ZONE $2, 'YYYY-MM-DD') AS d
@@ -83,11 +85,10 @@ router.get('/', asyncHandler(async (req, res) => {
   // Up next: the first planned day from today on that isn't done yet.
   let upNext = null;
   for (let i = 0; i < 7 && !upNext; i++) {
-    const idx = (weekday + i) % 7;
-    const plan = schedule[idx];
+    const plan = resolved[weekday + i];
     if (plan.kind === 'rest') continue;
-    if (i === 0 && (days[idx].done.length || (plan.kind === 'stretch' && days[idx].stretched))) continue;
-    upNext = { daysAway: i, day: idx, ...plan };
+    if (i === 0 && (days[weekday].done.length || (plan.kind === 'stretch' && days[weekday].stretched))) continue;
+    upNext = { daysAway: i, ...plan };
   }
   if (upNext && upNext.kind === 'workout') {
     const { rows } = await query(

@@ -527,3 +527,28 @@ body.focus a { color: #EDEDE6; }
 }
 .f-ring .val small { font-family: var(--sans); font-size: 13px; color: #9AA59E; font-weight: 500; margin-top: 2px; }
 .f-ring.lead .val { color: #E0A75E; }
+
+/* ================= Version 3: push a day ================= */
+.push-days { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; max-height: 40vh; overflow-y: auto; }
+.push-day {
+  min-height: 56px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; color: var(--ink);
+}
+.push-day:hover { border-color: var(--ink); }
+.push-day .pd-date { font-size: 13px; font-weight: 600; }
+.push-day .pd-plan { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.note-tag { font-size: 10px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--amber-fg); background: var(--amber-bg); border-radius: 999px; padding: 1px 7px; }
+.day-card .note-tag { align-self: flex-start; }
+button.day-card { cursor: pointer; font: inherit; }
+button.day-card:hover { border-color: var(--line); }
+.today-card .cant {
+  color: inherit; opacity: 0.85; text-decoration: underline; background: none; border: 0;
+  padding: 6px 0; min-height: 36px; font: 500 14px var(--sans); cursor: pointer;
+}
+.agenda-row { display: flex; align-items: center; gap: 12px; padding: 8px 14px; min-height: 52px; border-top: 1px solid var(--line-soft); }
+.agenda-row .when { width: 92px; flex-shrink: 0; font-size: 13px; font-weight: 600; }
+.agenda-row .what { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14px; }
+.agenda-row.rest .what { color: var(--muted); }
+@media (max-width: 760px) {
+  .day-card .note-tag { align-self: center; font-size: 9px; padding: 1px 4px; }
+}
