@@ -155,7 +155,7 @@
       <${tagName} class="day-card ${p.kind === 'rest' && !day.done.length ? 'rest' : ''} ${day.isToday ? 'today' : ''}"
         ${canPush ? `data-push="${day.date}" aria-label="${esc(label)} on ${GL.longDate(day.date)}. Tap to push or skip."` : ''}>
         <span class="dow">${GL.DOW3[i]} <b>${GL.dayNum(day.date)}</b></span>
-        ${doneName ? `<span class="${chipClass}" style="align-self:flex-start">${esc(doneName)}</span>` : ''}
+        ${doneName ? `<span class="${chipClass}" style="align-self:flex-start" title="${esc(doneName)}">${esc(doneName)}</span>` : ''}
         ${tag}
         <span class="note">${note}${day.stretched && p.kind !== 'stretch' ? ' + stretch' : ''}</span>
       </${tagName}>`;

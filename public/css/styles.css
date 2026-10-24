@@ -552,3 +552,47 @@ button.day-card:hover { border-color: var(--line); }
 @media (max-width: 760px) {
   .day-card .note-tag { align-self: center; font-size: 9px; padding: 1px 4px; }
 }
+
+/* ================= Version 4: nav icons + long names stay inside their boxes ================= */
+.nav a { display: inline-flex; align-items: center; gap: 6px; }
+.nav a .nav-ico { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.85; }
+.nav a.active .nav-ico { opacity: 1; }
+@media (max-width: 1100px) and (min-width: 761px) {
+  .nav a .nav-ico { display: none; } /* not enough room for icons + words on small laptops */
+}
+@media (max-width: 760px) {
+  .tabbar a { gap: 3px; }
+  .tabbar a .nav-ico { width: 22px; height: 22px; }
+  .tabbar a.active .nav-ico { stroke-width: 2.3; }
+}
+
+/* Long workout names: cut off with "…" instead of spilling out of the box */
+.day-card { min-width: 0; overflow: hidden; }
+.day-card .chip, .day-card .note { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.day-card .chip { display: inline-block; }
+.push-day { min-width: 0; overflow: hidden; }
+.push-day .pd-date, .push-day .pd-plan { max-width: 100%; }
+.push-day .pd-plan { min-width: 0; }
+.push-day .pd-plan .pd-name, .agenda-row .what .ag-name, .start-today-name, .today-card .big-name {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.push-day .pd-plan .pd-name { flex: 1; }
+.agenda-row .what { flex-wrap: nowrap; }
+.agenda-row .what .ag-name { flex: 0 1 auto; }
+.agenda-row .what .note-tag { flex-shrink: 0; }
+.agenda-row .btn { flex-shrink: 0; }
+.today-card > div:first-child { min-width: 0; flex: 1 1 220px; }
+.today-card .big-name { white-space: normal; overflow-wrap: anywhere; }
+.start-today > span:first-child { flex: 1; }
+.start-today-name { display: block; }
+.modal .row-center b { overflow-wrap: anywhere; }
+.chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.list-row .title, .routine-card h3 { overflow-wrap: anywhere; }
+/* Agenda and push-day names: up to two lines, then "…" */
+.push-day .pd-plan .pd-name, .agenda-row .what .ag-name {
+  white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+.push-day .pd-plan { align-items: flex-start; }
+.push-day .pd-plan .dot { margin-top: 4px; }
+.nav a { padding: 10px 10px; }

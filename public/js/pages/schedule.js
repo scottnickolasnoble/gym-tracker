@@ -130,7 +130,7 @@
         ${next.map((d) => `
           <div class="agenda-row ${d.kind === 'rest' ? 'rest' : ''}">
             <span class="when">${d.date === today ? 'Today' : d.date === GL.addDays(today, 1) ? 'Tomorrow' : GL.DOW3[GL.weekdayIndex(d.date)] + ' ' + GL.shortDate(d.date).split(' ')[0] + ' ' + GL.dayNum(d.date)}</span>
-            <span class="what">${d.kind !== 'rest' ? GL.typeDot(GL.planType(d)) : ''}${esc(GL.planLabel(d))}${d.note ? `<span class="note-tag">${GL.NOTE_LABEL[d.note]}</span>` : ''}</span>
+            <span class="what">${d.kind !== 'rest' ? GL.typeDot(GL.planType(d)) : ''}<span class="ag-name">${esc(GL.planLabel(d))}</span>${d.note ? `<span class="note-tag">${GL.NOTE_LABEL[d.note]}</span>` : ''}</span>
             ${d.kind !== 'rest' ? `<button class="btn btn-sm" data-push="${d.date}">Push</button>` : ''}
           </div>`).join('')}
       </div>`;

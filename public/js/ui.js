@@ -266,7 +266,7 @@
   const planType = (d) => (d.kind === 'workout' ? d.routineType : d.kind === 'stretch' ? 'stretch' : 'rest');
   GL.planLabel = planLabel;
   GL.planType = planType;
-  GL.NOTE_LABEL = { moved: 'Moved here', 'pushed-off': 'Pushed', skipped: 'Skipped' };
+  GL.NOTE_LABEL = { moved: 'Moved', 'pushed-off': 'Pushed', skipped: 'Skipped' };
 
   GL.pushSheet = async (day, onDone) => {
     const today = GL.todayLocal();
@@ -292,7 +292,7 @@
             ${choices.map((d) => `
               <button class="push-day" data-to="${d.date}">
                 <span class="pd-date">${dayName(d.date)}</span>
-                <span class="pd-plan">${GL.typeDot(planType(d))}${GL.esc(planLabel(d))}</span>
+                <span class="pd-plan">${GL.typeDot(planType(d))}<span class="pd-name">${GL.esc(planLabel(d))}</span></span>
               </button>`).join('')}
           </div>
           <p class="tiny muted">If something is already planned on that day, it moves back a day too, and so on until it reaches a rest day. Your weekly plan doesn't change.</p>
@@ -328,14 +328,25 @@
   };
 
   // ---------- Header + phone tab bar ----------
+  // Nav icons (24x24, stroke = currentColor)
+  const navSvg = (d) => `<svg class="nav-ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  GL.navIcon = {
+    home: navSvg('<path d="M3 11l9-7 9 7"></path><path d="M5 10v10h5v-6h4v6h5V10"></path>'),
+    schedule: navSvg('<rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path><path d="M8 14h2M14 14h2M8 17h2"></path>'),
+    routines: navSvg('<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"></path>'),
+    history: navSvg('<path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v4h4"></path><path d="M12 8v4l3 2"></path>'),
+    exercises: navSvg('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path>'),
+    stretch: navSvg('<circle cx="12" cy="4.5" r="2"></circle><path d="M12 7v6l-4 7M12 13l4 7M5 9l7-1 7 1"></path>'),
+    settings: navSvg('<circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path>')
+  };
+
   const NAV = [
     ['/', 'Dashboard', 'home'],
     ['/schedule.html', 'Schedule', 'schedule'],
     ['/routines.html', 'Workouts', 'routines'],
     ['/history.html', 'History', 'history'],
     ['/exercises.html', 'Exercises', 'exercises'],
-    ['/stretch.html', 'Stretch', 'stretch'],
-    ['/settings.html', 'Settings', 'settings']
+    ['/stretch.html', 'Stretch', 'stretch']
   ];
   const TABS = [
     ['/', 'Home', 'home'],
@@ -352,7 +363,7 @@
       <div class="inner">
         <a class="brand" href="/">Gym Log</a>
         <nav class="nav" aria-label="Main">
-          ${NAV.map(([href, label, key]) => `<a href="${href}" class="${key === active ? 'active' : ''}" ${key === active ? 'aria-current="page"' : ''}>${label}</a>`).join('')}
+          ${NAV.map(([href, label, key]) => `<a href="${href}" class="${key === active ? 'active' : ''}" ${key === active ? 'aria-current="page"' : ''}>${GL.navIcon[key]}<span>${label}</span></a>`).join('')}
         </nav>
         <div class="header-actions">
           <button class="btn btn-sm btn-primary header-start" data-start>${GL.icon.play(14)} Start workout</button>
@@ -367,7 +378,7 @@
     tabs.setAttribute('aria-label', 'Main');
     tabs.innerHTML = TABS.map(([href, label, key]) => key === 'start'
       ? `<button class="tab-start" data-start aria-label="Start a workout"><span class="tab-start-btn">${GL.icon.play(22)}</span><span>Start</span></button>`
-      : `<a href="${href}" class="${key === active ? 'active' : ''}" ${key === active ? 'aria-current="page"' : ''}>${label}</a>`).join('');
+      : `<a href="${href}" class="${key === active ? 'active' : ''}" ${key === active ? 'aria-current="page"' : ''}>${GL.navIcon[key]}<span>${label}</span></a>`).join('');
     document.body.appendChild(tabs);
 
     document.addEventListener('click', (e) => {
